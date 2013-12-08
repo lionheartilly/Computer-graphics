@@ -1,0 +1,122 @@
+/* Lee un tga de 24 bits, hace un proceso básico y escribe un tga out.tga      */
+/* out.tga se puede visualizar con photoshop                                   */
+/* Para generar un tga, con photoshop coger cualquier imagen, y guardarla como */
+/* tga a 24 bits sin compresion, a menor resolucion de 1200x1200               */
+
+#include <stdio.h>
+#include <math.h>
+
+#define SALIDA "out.tga"            // el archivo de salida
+#define MAXRX 1200                  // el tamaño máximo del array en x
+#define MAXRY 1200                  // y en y
+
+unsigned char Img[MAXRX][MAXRY][3];  // aqui se guarda la imagen, tres bytes R, G, B
+                                     // Un array es muchisimo más rápido que un array de estructuras
+                                     // o una estructura de tres arrays
+int Rx,Ry;                           // la Resolución de la imagen
+
+
+void LeeTga(char na[])               // Lee un tga 24 de bits.
+{
+ FILE *fe;
+ int x,y,i;
+ unsigned char c,resto,cociente;
+ 
+ fe=fopen(na,"rb");
+ if (fe==NULL)
+   {printf("Error al abrir archivo %s\nPulsa...",na); getch();exit(1);}
+
+ for(i=0;i<12;i++)                              //leo 12 bytes de la cabecera que no se usan para nada
+   c=fgetc(fe);
+   
+ resto=fgetc(fe);                               //La resolucion se codifica en dos bytes
+ cociente=fgetc(fe);                            //el primero es el resto de dividir por 256
+ Rx=cociente*256+resto;                         //y el segundo el cociente. Y lo recompongo
+
+ resto=fgetc(fe);                               // igual para la Ry
+ cociente=fgetc(fe);                            
+ Ry=cociente*256+resto;
+
+ c=fgetc(fe);
+ c=fgetc(fe);                                   //los ultimos 2 bytes de la cabecera
+ 
+ for(y=0;y<Ry;y++)                              //aqui leo la imagen
+  for(x=0;x<Rx;x++)
+  {
+    Img[x][y][2]=fgetc(fe);                     //lee en orden B, G, R
+    Img[x][y][1]=fgetc(fe);
+    Img[x][y][0]=fgetc(fe);
+  }
+
+  fclose(fe);
+}
+
+
+void GuardaTga()                                // Escribe un TGA guardado en memoria, a 24 bits
+{
+ FILE *fs;
+ int x,y;
+ 
+ fs=fopen(SALIDA,"wb");                        //abro para escritura binaria
+ if (fs==NULL)
+   {printf("Error al crear archivo %s\nPulsa...",SALIDA); getch();exit(1);}
+
+ fputc(0,fs); /* 0 */                          // guardo valores de cebecera: la mayoria son ceros
+ fputc(0,fs); /* 1 */
+ fputc(2,fs); /* 2 */
+ fputc(0,fs); /* 3 */
+ fputc(0,fs); /* 4 */
+ fputc(0,fs); /* 5 */
+ fputc(0,fs); /* 6 */
+ fputc(0,fs); /* 7 */
+ fputc(0,fs); /* 8 */
+ fputc(0,fs); /* 9 */
+ fputc(0,fs); /* 10 */
+ fputc(0,fs); /* 11 */
+ fputc(Rx%256,fs); /* 12 */                   //La resolucion x en dos bytes
+ fputc(Rx/256,fs); /* 13 */
+ fputc(Ry%256,fs); /* 14 */                   //la resolucion y en dos bytes
+ fputc(Ry/256,fs); /* 15 */
+ fputc(24,fs); /* 16 */                       //indica 24 bits por pixel
+ fputc(0,fs); /* 17 */                        // acabo la cabecera
+
+ for(y=0;y<Ry;y++)                            // y aqui guardo la imagen por filas horizontales
+  for(x=0;x<Rx;x++)
+  {
+    fputc((char)Img[x][y][2],fs);             //tres bytes por pixel, B, G, R
+    fputc((char)Img[x][y][1],fs);
+    fputc((char)Img[x][y][0],fs);
+  }
+
+  fclose(fs);
+}
+
+void bn()
+{
+ int x,y;
+ int r,g,b, newR, newG, newB,med;
+
+ for (y=0;y<Ry;y++)
+  for (x=0;x<Rx;x++)
+   {
+    r=Img[x][y][0];g=Img[x][y][1];b=Img[x][y][2];
+    med=(r+g+b)/3;
+  	Img[x][y][0]=Img[x][y][1]=Img[x][y][2]=med;
+   }
+}
+
+main()
+{
+ char na[100];
+ 
+ printf("Nombre de archivo : ");
+ gets(na);
+ LeeTga(na);
+ printf("Resolucion de %d x %d\n",Rx,Ry);
+ printf("Convirtiendo a b/n\n"); 
+ bn();
+ printf("Guardando out.tga...\n");
+ GuardaTga();
+ printf("Terminado. Pulsa...\n"); 
+ getchar();
+}
